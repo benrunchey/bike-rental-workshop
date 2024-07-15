@@ -12,4 +12,5 @@ public interface BikeStatusRepository extends JpaRepository<BikeStatus, String> 
 
     List<BikeStatus> findAllByBikeTypeAndStatus(String bikeType, RentalStatus status);
 
+    long countBikeStatusesByBikeType(String bikeType);
 }

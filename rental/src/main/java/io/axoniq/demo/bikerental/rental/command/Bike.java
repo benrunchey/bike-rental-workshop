@@ -21,7 +21,7 @@ import java.util.UUID;
 
 import static org.axonframework.modelling.command.AggregateLifecycle.apply;
 
-@Aggregate
+@Aggregate(snapshotTriggerDefinition = "bikeSnapshotDefinition")
 public class Bike {
 
     @AggregateIdentifier
@@ -36,10 +36,6 @@ public class Bike {
 
     @CommandHandler
     public Bike(RegisterBikeCommand command) {
-        var seconds = Instant.now().getEpochSecond();
-        if (seconds % 5 ==0) {
-            throw new IllegalStateException("Can't accept new bikes right now");
-        }
         apply(new BikeRegisteredEvent(command.bikeId(), command.bikeType(), command.location()));
     }
 

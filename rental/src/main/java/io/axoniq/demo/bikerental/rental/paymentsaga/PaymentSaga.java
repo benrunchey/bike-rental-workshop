@@ -65,7 +65,7 @@ public class PaymentSaga {
 
     @SagaEventHandler(associationProperty = "paymentReference")
     public void on(PaymentPreparedEvent event) {
-        deadlineManager.schedule(Duration.ofSeconds(60), "cancelPayment", event.paymentId());
+        deadlineManager.schedule(Duration.ofSeconds(20), "cancelPayment", event.paymentId());
     }
 
     @DeadlineHandler(deadlineName = "cancelPayment")

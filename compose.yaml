@@ -7,4 +7,12 @@ services:
       - ./.pg-init-scripts:/docker-entrypoint-initdb.d
     environment:
       - POSTGRES_PASSWORD=superSecret
-      - POSTGRES_MULTIPLE_DATABASES=rental
+      - POSTGRES_MULTIPLE_DATABASES=rentalpg,rentalas
+
+  axonserver:
+    image: 'axoniq/axonserver:latest'
+    environment:
+      - 'AXONIQ_AXONSERVER_STANDALONE=TRUE'
+    ports:
+      - '8024:8024'
+      - '8124:8124'

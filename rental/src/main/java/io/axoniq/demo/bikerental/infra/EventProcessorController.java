@@ -1,25 +1,41 @@
 package io.axoniq.demo.bikerental.infra;
 
+import com.google.type.DateTime;
+import io.axoniq.axonserver.connector.AxonServerConnection;
+import io.axoniq.demo.bikerental.rental.query.BikeStatusProjection;
 import org.axonframework.config.Configuration;
 import org.axonframework.config.EventProcessingConfiguration;
-import org.axonframework.eventhandling.EventProcessor;
-import org.axonframework.eventhandling.StreamingEventProcessor;
-import org.axonframework.eventhandling.TrackingEventProcessor;
+import org.axonframework.eventhandling.*;
+import org.axonframework.eventhandling.tokenstore.TokenStore;
+import org.axonframework.eventhandling.tokenstore.UnableToClaimTokenException;
+import org.axonframework.messaging.StreamableMessageSource;
 import org.axonframework.springboot.EventProcessorProperties;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.axonframework.eventsourcing.eventstore.EventStore;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 @RestController()
 @RequestMapping("/eventprocessors")
 public class EventProcessorController {
 
-    private EventProcessingConfiguration processingConfiguration;
-    private EventStore eventStore;
-    private EventProcessorProperties eventProcessorProperties;
+    private final EventProcessingConfiguration processingConfiguration;
+    private final EventStore eventStore;
+    private final EventProcessorProperties eventProcessorProperties;
+
+    static Logger logger = Logger.getLogger(EventProcessorController.class.getName());
 
     public EventProcessorController(EventProcessingConfiguration processingConfiguration,
                                     EventStore eventStore,
@@ -115,5 +131,44 @@ public class EventProcessorController {
                 .ifPresent(EventProcessor::start);
     }
 
+    /**
+     *This method accepts the name of an event processor and attempts to reset the tokens for it to trigger a replay
+     * from the date specified.
+     * @param eventProcessorName - name of event processor trigger reset on
+     * @param resetToDate - Date in format of YYYY-MM-DDTHH:MM:SS:mmm
+     */
+    @PutMapping("/{eventProcessorName}/initiatereplay/{resetToDate}")
+    public void initiateReplayFromDate(@PathVariable("eventProcessorName") String eventProcessorName, @PathVariable("resetToDate") Optional<String> resetToDate ) {
+        processingConfiguration.eventProcessor(eventProcessorName, StreamingEventProcessor.class)
+                .ifPresent(streamingProcessor -> {
+                    if (streamingProcessor.supportsReset()) {
+                        try {
+                            if(resetToDate.isPresent()) {
+                                var replayFrom = Instant.parse(resetToDate.get());
+                                logger.info("Attempting to replay events from " + replayFrom.toString());
+                                streamingProcessor.shutDown();
+                                streamingProcessor.resetTokens((messageSource) -> messageSource.createTokenAt(replayFrom));
+                            } else {
+                                streamingProcessor.shutDown();
+                                streamingProcessor.resetTokens();
+                            }
+
+                            streamingProcessor.start();
+                        } catch (UnableToClaimTokenException ex) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getLocalizedMessage());
+                        }
+                    }
+                });
+    }
+
+    /**
+     * This will trigger a full reset from the beginning of the event stream for the named Event Processor
+     *
+     * @param eventProcessorName - name of event processor trigger reset on
+     */
+    @PutMapping("/{eventProcessorName}/initiatereplay")
+    public void initiateReplayFromTail(@PathVariable("eventProcessorName") String eventProcessorName) {
+        initiateReplayFromDate(eventProcessorName, Optional.empty());
+    }
 
 }
