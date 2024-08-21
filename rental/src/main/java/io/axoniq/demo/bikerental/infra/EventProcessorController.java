@@ -18,6 +18,7 @@ import org.axonframework.eventhandling.tokenstore.TokenStore;
 import org.axonframework.eventhandling.tokenstore.UnableToClaimTokenException;
 import org.axonframework.messaging.StreamableMessageSource;
 import org.axonframework.springboot.EventProcessorProperties;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.axonframework.eventsourcing.eventstore.EventStore;
@@ -40,6 +41,7 @@ import java.util.logging.Logger;
 
 @RestController()
 @RequestMapping("/eventprocessors")
+@Profile("axonserver")
 public class EventProcessorController {
 
     private final EventProcessingConfiguration processingConfiguration;
